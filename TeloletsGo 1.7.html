@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TeloletsGo! v1.7</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Tone.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        /* Custom styles for piano keys and overall layout */
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #1a202c; /* Dark background */
+            color: #e2e8f0; /* Light text */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+            padding: 1rem; /* Overall padding for the body */
+        }
+
+        /* New header container for title, info button, instrument select, and master stop button */
+        .header-area {
+            display: flex;
+            justify-content: space-between; /* Space out elements */
+            align-items: center;
+            width: calc(100vw - 2rem); /* Match overall content width */
+            max-width: 95vw;
+            margin-bottom: 2rem;
+            padding: 0 0.5rem; /* Reduced padding slightly to keep button closer to edge */
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        /* Group for instrument select, info button, and master stop button on the right */
+        .header-right-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem; /* Space between elements in the group */
+        }
+
+        /* Info Button Styling */
+        .info-button {
+            @apply bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-full shadow-lg transition-all duration-200 ease-in-out cursor-pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .info-button i {
+            font-size: 1.2rem;
+        }
+
+        /* Master Stop Button Styling */
+        .master-stop-button {
+            @apply bg-red-600 hover:bg-red-700 text-white font-bold rounded-full shadow-lg transition-all duration-200 ease-in-out cursor-pointer;
+            width: 50px; /* Bigger size */
+            height: 50px; /* Bigger size */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0; /* Prevent button from shrinking */
+        }
+        .master-stop-button i {
+            font-size: 1.5rem; /* Bigger icon */
+        }
+
+        .piano-container {
+            display: flex;
+            position: relative;
+            background-color: #2d3748; /* Darker gray for piano base */
+            border-radius: 1rem; /* Rounded corners for the piano */
+            padding: 1rem; /* Padding inside the piano container */
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.3); /* Soft shadow */
+            /* Width calculation for proportional fit with side margins */
+            width: calc(100vw - 2rem); /* Take full viewport width minus body padding */
+            max-width: 95vw; /* Max width constraint for larger screens */
+            margin: 0 auto 2rem auto; /* Centered with bottom margin, 0 auto for horizontal margin */
+            overflow: hidden; /* Prevent horizontal scrolling of the piano keys */
+            min-height: 220px; /* Minimum height for the piano keys */
+            box-sizing: border-box; /* Include padding in width calculation */
+        }
+
+        .key {
+            /* Width and height will be set dynamically by JavaScript */
+            background-color: white;
+            border: 1px solid #cbd5e0;
+            border-radius: 0 0 0.75rem 0.75rem;
+            cursor: pointer;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.1s ease-in-out, transform 0.1s ease-in-out;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 8px;
+            font-size: 0.85rem;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            position: relative; /* Needed for ml-px to work in flex context if it were used */
+            flex-shrink: 1; /* Allow keys to shrink */
+        }
+
+        .key.active {
+            background-color: #e2e8f0;
+            transform: translateY(3px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .black-key {
+            /* Width and height will be set dynamically by JavaScript */
+            position: absolute;
+            background-color: #2d3748;
+            border: 1px solid #1a202c;
+            border-radius: 0 0 0.75rem 0.75rem;
+            cursor: pointer;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.4);
+            z-index: 10;
+            transition: background-color 0.1s ease-in-out, transform 0.1s ease-in-out;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .black-key.active {
+            background-color: #4a5568;
+            transform: translateY(3px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Custom sound buttons container */
+        .custom-button-container {
+            display: flex;
+            flex-wrap: nowrap; /* Keep items in a single line */
+            overflow-x: auto; /* Allow horizontal scrolling if necessary for very small screens, but prefer shrinking */
+            gap: 1rem; /* Gap between buttons */
+            width: calc(100vw - 2rem); /* Match piano container width */
+            max-width: 95vw; /* Max width constraint for larger screens */
+            margin: 0 auto 2rem auto; /* Centered with bottom margin */
+            padding: 1rem; /* Padding inside the container */
+            justify-content: center; /* Center the buttons horizontally */
+            align-items: flex-start; /* Align items to the start for vertical stacking */
+            box-sizing: border-box;
+            min-width: 320px; /* Prevents buttons from becoming too small */
+        }
+
+        /* Each custom sound item (button + text) */
+        .custom-sound-item {
+            display: flex;
+            flex-direction: column; /* Stack button and text vertically */
+            align-items: center; /* Center content horizontally */
+            flex-shrink: 1; /* Allow items to shrink proportionally */
+            flex-grow: 1; /* Allow items to grow proportionally */
+            min-width: 60px; /* Minimum width for the item, prevents extreme shrinking */
+            text-align: center; /* Center text below button */
+            width: calc((100% - (7 * 1rem)) / 8); /* Calculate width dynamically for 8 buttons with gaps */
+            max-width: 80px; /* Ensure buttons don't grow too large */
+        }
+        /* Custom sound button styling: circle */
+        .custom-sound-button {
+            @apply text-white font-bold py-3 px-6 shadow-lg flex flex-col items-center justify-center transition-all duration-200 ease-in-out cursor-pointer;
+            width: 80px; /* Fixed width for the button itself */
+            height: 80px; /* Fixed height for circle shape */
+            border-radius: 50%; /* Make it a circle */
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            margin-bottom: 0.25rem; /* Small margin between button and text */
+        }
+
+        /* Content inside the button (icon only) */
+        .custom-sound-button i {
+            font-size: 1.5rem; /* Larger icon size */
+            margin-bottom: 0; /* Remove internal margin if any */
+        }
+
+        /* File name text below the button */
+        .custom-sound-item span {
+            display: block; /* Ensure it takes full width */
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap; /* Keep file name on single line with ellipsis */
+            font-size: 0.75rem; /* Consistent smaller font for file names */
+            font-weight: 600; /* Semibold */
+            color: #e2e8f0; /* Light text color */
+            width: 100%; /* Make span take full width of its parent (.custom-sound-item) */
+            padding: 0 5px; /* Small horizontal padding for text */
+            box-sizing: border-box;
+        }
+
+        .custom-sound-button.loading {
+            @apply bg-gray-500 cursor-not-allowed;
+        }
+
+        .custom-sound-button.loaded:hover {
+            filter: brightness(110%);
+        }
+        
+        .file-input {
+            display: none; /* Hide the default file input */
+        }
+
+        .message-box {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            pointer-events: none; /* Allow clicks to pass through */
+        }
+
+        .message-box.show {
+            opacity: 1;
+        }
+
+        /* Modal specific styles */
+        .modal {
+            position: fixed;
+            z-index: 1001; /* Above message box */
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background-color: #2d3748;
+            margin: auto;
+            padding: 20px;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.5);
+            position: relative;
+            transform: translateY(20px);
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .modal.show .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            position: absolute;
+            top: 10px;
+            right: 15px;
+        }
+
+        .modal-close-button:hover,
+        .modal-close-button:focus {
+            color: #e2e8f0;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="p-4">
+    <div class="header-area">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
+            TeloletsGo!
+        </h1>
+        <div class="header-right-group">
+            <select id="instrumentVoiceSelect" class="bg-gray-700 text-white p-2 rounded-lg border border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-base">
+                <!-- Options will be populated by JS -->
+            </select>
+            <!-- Info Button -->
+            <button id="infoButton" class="info-button">
+                <i class="fas fa-info-circle"></i>
+            </button>
+            <!-- Master Stop Button -->
+            <button id="masterStopButton" class="master-stop-button">
+                <i class="fas fa-volume-mute"></i> <!-- Changed to mute icon -->
+            </button>
+        </div>
+    </div>
+
+    <!-- Message Box for notifications -->
+    <div id="message-box" class="message-box"></div>
+
+    <div class="piano-container" id="piano-container">
+        <!-- Piano keys (1.5 octaves from C4 to F5) -->
+        <div id="C4" class="key">C4</div>
+        <div id="D4" class="key ml-px">D4</div>
+        <div id="E4" class="key ml-px">E4</div>
+        <div id="F4" class="key ml-px">F4</div>
+        <div id="G4" class="key ml-px">G4</div>
+        <div id="A4" class="key ml-px">A4</div>
+        <div id="B4" class="key ml-px">B4</div>
+        <div id="C5" class="key ml-px">C5</div>
+        <div id="D5" class="key ml-px">D5</div>
+        <div id="E5" class="key ml-px">E5</div>
+        <div id="F5" class="key ml-px">F5</div>
+
+        <!-- Black Keys (adjusted positions for C4-F5 range) -->
+        <div id="C#4" class="black-key Csharp"></div>
+        <div id="D#4" class="black-key Dsharp"></div>
+        <div id="F#4" class="black-key Fsharp"></div>
+        <div id="G#4" class="black-key Gsharp"></div>
+        <div id="A#4" class="black-key Asharp"></div>
+        <div id="C#5" class="black-key Csharp-next"></div>
+        <div id="D#5" class="black-key Dsharp-next"></div>
+    </div>
+
+    <div class="custom-button-container">
+        <!-- Custom Sound Buttons will be dynamically generated here -->
+    </div>
+
+    <!-- Info Modal HTML -->
+    <div id="infoModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close-button">&times;</span>
+            <h2 class="text-2xl font-bold mb-4 text-center text-purple-400">TeloletsGo!</h2>
+            <p class="text-center text-gray-400 mb-5">Version 1.7</p>
+            <div class="text-gray-300 space-y-3">
+                <p>Welcome to TeloletsGo! This app lets you play various instrument sounds and your own custom audio clips, inspired by the "Om Telolet Om" phenomenon!</p>
+                <h3 class="text-xl font-semibold text-pink-400">Piano Instructions:</h3>
+                <p>Use the white and black keys on the piano interface. You can tap or click them to play notes. For desktop users, you can also use your keyboard:</p>
+                <ul class="list-disc list-inside ml-4">
+                    <li>**White Keys:** A, S, D, F, G, H, J, K, L, ;, '</li>
+                    <li>**Black Keys:** W, E, T, Y, U, O, P</li>
+                </ul>
+                <p>Select your desired instrument voice from the dropdown menu in the top right.</p>
+                <h3 class="text-xl font-semibold text-pink-400">Custom Sounds:</h3>
+                <p>The circular buttons below the piano are for your custom sounds. Click or tap an "upload" icon to load an audio file from your device. Once loaded, the icon will change to a speaker. Tap the speaker to play your custom sound.</p>
+                <p>The filename will appear below the button. Each button will play the latest triggered sound, stopping any previous playback from that button.</p>
+                <h3 class="text-xl font-semibold text-pink-400">Master Stop:</h3>
+                <p>The mute button (<i class="fas fa-volume-mute"></i>) in the top right will immediately stop all currently playing piano notes and any active custom sounds.</p>
+                <p class="text-center mt-5 text-gray-400">Made with ☕ by arahkanan</p>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // Global variables for Firebase configuration, though not used in this specific app,
+        // they are included as per standard practice for Canvas environments.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
+
+        // Tone.js Audio Context Initialization
+        let audioContextStarted = false; // Keep this flag to avoid redundant messages, but Tone.start() is now idempotent
+
+        /**
+         * Displays a temporary message box at the top of the screen.
+         * @param {string} message - The message to display.
+         * @param {number} duration - How long to show the message in milliseconds (default: 3000).
+         */
+        function showMessageBox(message, duration = 3000) {
+            const msgBox = document.getElementById('message-box');
+            msgBox.textContent = message;
+            msgBox.classList.add('show');
+            setTimeout(() => {
+                msgBox.classList.remove('show');
+            }, duration);
+        }
+
+        // Define Tone.js instruments for the app, focused on "Telolet" horn sounds
+        // Reverb Telolet Horn (retained as previous default)
+        const reverbTeloletHorn = new Tone.PolySynth(Tone.AMSynth, {
+            harmonicity: 1.5,
+            oscillator: { type: 'sawtooth' },
+            envelope: {
+                attack: 0.02,
+                decay: 0.5, // Longer decay
+                sustain: 0.4, // More sustain
+                release: 1.0 // Significantly longer release for reverb tail
+            },
+            modulation: { type: 'triangle' },
+            modulationEnvelope: {
+                attack: 0.03,
+                decay: 0.1,
+                sustain: 0.1,
+                release: 0.1
+            },
+            volume: -7
+        }).toDestination();
+
+        // Solid Telolet Horn (balanced envelope for a full, stable sound)
+        const solidTeloletHorn = new Tone.PolySynth(Tone.AMSynth, {
+            harmonicity: 1.5,
+            oscillator: { type: 'sawtooth' },
+            envelope: {
+                attack: 0.03, // Slightly longer attack for less click
+                decay: 0.4,
+                sustain: 0.3, // Good sustain
+                release: 0.5 // Decent release for body
+            },
+            modulation: { type: 'triangle' },
+            modulationEnvelope: {
+                attack: 0.03,
+                decay: 0.15,
+                sustain: 0.15,
+                release: 0.15
+            },
+            volume: -6 // Balanced volume
+        }).toDestination();
+
+        // Resonant Telolet Horn (fuller body with slightly more sustain and a broader harmonicity)
+        const resonantTeloletHorn = new Tone.PolySynth(Tone.FMSynth, {
+            harmonicity: 2.5, // Broader harmonicity for resonance
+            modulationIndex: 10,
+            oscillator: { type: 'sine' },
+            envelope: {
+                attack: 0.04, // Slightly slower attack
+                decay: 0.6,
+                sustain: 0.5, // More sustain
+                release: 0.8 // Longer release for resonance
+            },
+            modulation: { type: 'sawtooth' },
+            modulationEnvelope: {
+                attack: 0.04,
+                decay: 0.2,
+                sustain: 0.2,
+                release: 0.2
+            },
+            volume: -5 // Good volume
+        }).toDestination();
+
+        // Punchy Solid Telolet (fast but controlled attack, good sustain)
+        const punchySolidTelolet = new Tone.PolySynth(Tone.AMSynth, {
+            harmonicity: 1.8,
+            oscillator: { type: 'square' },
+            envelope: {
+                attack: 0.01, // Quick attack but not instantaneous
+                decay: 0.2,
+                sustain: 0.2,
+                release: 0.3 // Balanced release
+            },
+            modulation: { type: 'sine' },
+            modulationEnvelope: {
+                attack: 0.01,
+                decay: 0.08,
+                sustain: 0.08,
+                release: 0.08
+            },
+            volume: -4 // Good punchy volume
+        }).toDestination();
+
+
+        // Updated instrumentVoices object for Version 1.6
+        const instrumentVoices = {
+            'Reverb Telolet Horn': reverbTeloletHorn,
+            'Solid Telolet Horn': solidTeloletHorn,
+            'Resonant Telolet Horn': resonantTeloletHorn,
+            'Punchy Solid Telolet': punchySolidTelolet
+        };
+
+        // Set 'Reverb Telolet Horn' as the default instrument
+        let currentInstrumentSynth = instrumentVoices['Reverb Telolet Horn']; 
+
+        /**
+         * Switches the active instrument synth.
+         * @param {string} instrumentName - The name of the instrument to switch to.
+         */
+        function switchInstrument(instrumentName) {
+            currentInstrumentSynth = instrumentVoices[instrumentName];
+            showMessageBox(`Switched to ${instrumentName} voice.`);
+        }
+
+        // --- Custom Sound Players Storage (8 slots) ---
+        const customSoundSlots = Array(8).fill(null).map((_, i) => ({
+            buffer: null, // Stores Tone.Buffer instance
+            name: '', // Default name, will be replaced by file name if loaded
+            isLoading: false,
+            currentPlayingInstance: null // Stores the currently playing Tone.Player instance for this slot
+        }));
+
+        // Define a set of Tailwind CSS colors for the custom buttons (8 colors)
+        const customButtonColors = [
+            'bg-purple-600 hover:bg-purple-700',
+            'bg-pink-600 hover:bg-pink-700',
+            'bg-blue-600 hover:bg-blue-700',
+            'bg-green-600 hover:bg-green-700',
+            'bg-yellow-600 hover:bg-yellow-700',
+            'bg-red-600 hover:bg-red-700',
+            'bg-indigo-600 hover:bg-indigo-700',
+            'bg-teal-600 hover:bg-teal-700'
+        ];
+
+        // --- Piano Key Mapping (C4 to F5 for 1.5 octaves fixed) ---
+        // These are the actual notes in the HTML
+        const pianoNotesDisplayed = [
+            'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4',
+            'C5', 'C#5', 'D5', 'D#5', 'E5', 'F5'
+        ];
+
+        // --- Piano Key Event Handlers ---
+        let activeTouches = {}; 
+
+        /**
+         * Starts a note using the currently selected instrument and applies active styling.
+         * @param {HTMLElement} keyElement - The HTML element of the piano key.
+         * @param {string} note - The MIDI note string (e.g., 'C4').
+         */
+        function startNote(keyElement, note) {
+            startAudioContext();
+            console.log('Piano - Audio context state:', Tone.context.state); // Log context state
+            currentInstrumentSynth.triggerAttack(note, Tone.now(), 1);
+            keyElement.classList.add('active');
+        }
+
+        /**
+         * Stops a note using the currently selected instrument and removes active styling.
+         * @param {HTMLElement} keyElement - The HTML element of the piano key.
+         * @param {string} note - The MIDI note string (e.g., 'C4').
+         */
+        function stopNote(keyElement, note) {
+            currentInstrumentSynth.triggerRelease(note);
+            keyElement.classList.remove('active');
+        }
+
+        /**
+         * Dynamically resizes piano keys to fit the container.
+         */
+        function resizePianoKeys() {
+            const pianoContainer = document.getElementById('piano-container');
+            const whiteKeys = pianoContainer.querySelectorAll('.key');
+            const blackKeys = pianoContainer.querySelectorAll('.black-key');
+
+            // Calculate effective width for keys: container width minus its own padding
+            // Use clientWidth to get the inner width of the container.
+            const containerEffectiveWidth = pianoContainer.clientWidth - (2 * parseFloat(getComputedStyle(pianoContainer).paddingLeft));
+            
+            // Number of white keys in 1.5 octaves (C4 to F5)
+            const numWhiteKeys = 11; 
+            // Total explicit pixel margins between white keys (10 gaps * 1px ml-px)
+            const totalMarginWidth = (numWhiteKeys - 1) * 1; 
+
+            // Calculate the ideal white key width, distributing available space
+            let dynamicWhiteKeyWidth = (containerEffectiveWidth - totalMarginWidth) / numWhiteKeys;
+
+            // Ensure a reasonable minimum size for white keys
+            if (dynamicWhiteKeyWidth < 40) { // Example min width to prevent extreme shrinking
+                dynamicWhiteKeyWidth = 40;
+            }
+            
+            // Maintain aspect ratio for black keys relative to white keys
+            const originalWhiteKeyWidth = 75; // Reference from CSS comments or original design
+            const originalBlackKeyWidth = 45;
+            const originalWhiteKeyHeight = 220;
+            const originalBlackKeyHeight = 140;
+
+            const dynamicBlackKeyWidth = dynamicWhiteKeyWidth * (originalBlackKeyWidth / originalWhiteKeyWidth); 
+            
+            // Set styles for white keys and store their calculated offset for black key positioning
+            let currentWhiteKeyOffset = 0; // Tracks accumulated width for positioning
+            whiteKeys.forEach((key, index) => {
+                key.style.width = `${dynamicWhiteKeyWidth}px`;
+                key.style.height = `${dynamicWhiteKeyWidth * (originalWhiteKeyHeight / originalWhiteKeyWidth)}px`; // Maintain aspect ratio
+                key.style.fontSize = `${dynamicWhiteKeyWidth * (0.85 / originalWhiteKeyWidth)}rem`; // Scale font
+                key.style.marginLeft = index === 0 ? '0px' : '1px'; // Apply ml-px equivalent
+
+                // Store calculated offset for black key positioning
+                key.dataset.whiteKeyCalculatedLeft = currentWhiteKeyOffset;
+                currentWhiteKeyOffset += dynamicWhiteKeyWidth + (index === whiteKeys.length - 1 ? 0 : 1); // Add width and ml-px for next key
+            });
+
+            // Set styles and positions for black keys
+            blackKeys.forEach(key => {
+                key.style.width = `${dynamicBlackKeyWidth}px`;
+                key.style.height = `${dynamicBlackKeyWidth * (originalBlackKeyHeight / originalBlackKeyWidth)}px`; // Maintain aspect ratio
+
+                const noteId = key.id.replace('sharp', '#');
+                let parentWhiteKeyId = '';
+
+                // Determine the white key it "belongs" to for positioning
+                if (noteId.includes('C#')) parentWhiteKeyId = `C${noteId.slice(-1)}`;
+                else if (noteId.includes('D#')) parentWhiteKeyId = `D${noteId.slice(-1)}`;
+                else if (noteId.includes('F#')) parentWhiteKeyId = `F${noteId.slice(-1)}`;
+                else if (noteId.includes('G#')) parentWhiteKeyId = `G${noteId.slice(-1)}`;
+                else if (noteId.includes('A#')) parentWhiteKeyId = `A${noteId.slice(-1)}`;
+
+                const parentWhiteKey = document.getElementById(parentWhiteKeyId);
+                if (parentWhiteKey && parentWhiteKey.dataset.whiteKeyCalculatedLeft) {
+                    const parentLeft = parseFloat(parentWhiteKey.dataset.whiteKeyCalculatedLeft);
+                    const parentWidth = parseFloat(parentWhiteKey.style.width); // Get dynamically set width
+
+                    // Position the black key centered over the split between its base white key and the next.
+                    let leftPos = parentWhiteKey.offsetLeft + (parentWhiteKey.offsetWidth / 2) - (key.offsetWidth / 2);
+
+                    key.style.left = `${leftPos}px`;
+                }
+            });
+        }
+
+
+        // Add event listeners to all piano keys (static for this setup)
+        function setupPianoKeyListeners() {
+            const pianoKeys = document.querySelectorAll('.piano-container .key, .piano-container .black-key');
+            pianoKeys.forEach(key => {
+                const note = key.id.replace(/sharp/g, '#');
+
+                // Mouse events
+                key.addEventListener('mousedown', (e) => {
+                    if (e.button === 0) { startNote(key, note); }
+                });
+                key.addEventListener('mouseup', (e) => {
+                    if (e.button === 0) { stopNote(key, note); }
+                });
+                key.addEventListener('mouseleave', (e) => {
+                    if (e.buttons === 1) { stopNote(key, note); }
+                });
+
+                // Touch events
+                key.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    startAudioContext(); // Centralized audio context start on first interaction
+                    Array.from(e.changedTouches).forEach(touch => {
+                        const touchedElement = document.elementFromPoint(touch.clientX, touch.clientY);
+                        if (touchedElement && touchedElement.id === key.id) {
+                            if (!activeTouches[touch.identifier]) {
+                                startNote(key, note);
+                                activeTouches[touch.identifier] = note;
+                            }
+                        }
+                    });
+                }, { passive: false });
+                key.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    Array.from(e.changedTouches).forEach(touch => {
+                        const playedNote = activeTouches[touch.identifier];
+                        if (playedNote === note) {
+                            stopNote(key, playedNote);
+                            delete activeTouches[touch.identifier];
+                        }
+                    });
+                });
+                key.addEventListener('touchcancel', (e) => {
+                    e.preventDefault();
+                    Array.from(e.changedTouches).forEach(touch => {
+                        const playedNote = activeTouches[touch.identifier];
+                        if (playedNote === note) {
+                            stopNote(key, playedNote);
+                            delete activeTouches[touch.identifier];
+                        }
+                    });
+                });
+            });
+        }
+
+
+        // --- Custom Sound Button Generation and Logic ---
+        const customButtonContainer = document.querySelector('.custom-button-container');
+
+        /**
+         * Renders (or re-renders) the custom sound buttons.
+         */
+        function renderCustomButtons() {
+            customButtonContainer.innerHTML = ''; // Clear existing buttons
+            customSoundSlots.forEach((slot, index) => {
+                const itemWrapper = document.createElement('div'); // New wrapper div for button and text
+                itemWrapper.classList.add('custom-sound-item');
+                itemWrapper.dataset.index = index; // Add data-index to wrapper for easier selection
+
+                const button = document.createElement('button');
+                button.classList.add('custom-sound-button', ...customButtonColors[index % customButtonColors.length].split(' '));
+                
+                // Icon element inside the button
+                const iconElement = document.createElement('i');
+                iconElement.classList.add('fas', 'text-xl');
+                button.appendChild(iconElement);
+
+                // Filename span is outside the button but inside the itemWrapper
+                const filenameSpan = document.createElement('span');
+
+                if (slot.isLoading) {
+                    button.classList.remove(...customButtonColors[index % customButtonColors.length].split(' '));
+                    button.classList.add('loading');
+                    iconElement.classList.remove('fa-play', 'fa-stop', 'fa-upload', 'fa-volume-up'); // Clean up old icon classes
+                    iconElement.classList.add('fa-spinner', 'fa-spin');
+                    filenameSpan.textContent = ''; // Clear text during loading
+                } else if (slot.buffer) { // Check for buffer, not player
+                    // Always show volume-up icon when loaded
+                    iconElement.classList.remove('fa-upload', 'fa-spinner', 'fa-spin', 'fa-play', 'fa-stop'); // Clean up old icon classes
+                    iconElement.classList.add('fa-volume-up');
+                    filenameSpan.textContent = slot.name; // Show filename if loaded
+                    button.classList.remove('loading'); // Ensure not in loading state
+                    button.classList.add('loaded'); // Mark as loaded
+                } else {
+                    // Initial state: no buffer, not loading
+                    iconElement.classList.remove('fa-play', 'fa-stop', 'fa-spinner', 'fa-spin', 'fa-volume-up'); // Clean up
+                    iconElement.classList.add('fa-upload');
+                    filenameSpan.textContent = ''; // No text for upload state
+                    button.classList.remove('loaded', 'loading'); // Ensure no loaded/loading classes
+                }
+
+                // Create a hidden file input for each button
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = 'audio/*';
+                fileInput.classList.add('file-input');
+                fileInput.dataset.index = index; // Link to the button's index
+                document.body.appendChild(fileInput); // Append to body (can be anywhere, it's hidden)
+
+                button.addEventListener('click', (e) => {
+                    startAudioContext(); // Centralized audio context start on first interaction
+
+                    if (slot.isLoading) {
+                        showMessageBox("Sound is currently loading, please wait.");
+                        return;
+                    }
+
+                    if (slot.buffer) { // Play from buffer if loaded
+                        // If there's an instance currently playing for this slot, stop and dispose it
+                        if (slot.currentPlayingInstance && slot.currentPlayingInstance.state === 'started') {
+                            console.log('Stopping previous instance for slot', index);
+                            slot.currentPlayingInstance.stop();
+                            slot.currentPlayingInstance.dispose();
+                            activeCustomSoundPlayers.delete(slot.currentPlayingInstance); // Remove from global set
+                        }
+                        
+                        // DEBUG: Log when attempting to play a new sound instance
+                        console.log('Attempting to play new custom sound instance for slot', index, 'from buffer.');
+                        console.log('Custom Sound - Audio context state:', Tone.context.state); // Log context state here
+                        
+                        const tempPlayer = new Tone.Player(slot.buffer).toDestination();
+                        tempPlayer.start(); // Explicitly start the player
+                        slot.currentPlayingInstance = tempPlayer; // Store this new playing instance
+                        activeCustomSoundPlayers.add(tempPlayer); // Add to global set
+
+                        tempPlayer.onended = () => {
+                            // DEBUG: Log when sound instance ends
+                            console.log('Custom sound instance ended and disposed for slot', index);
+                            tempPlayer.dispose(); // Dispose of the temporary player when it finishes
+                            activeCustomSoundPlayers.delete(tempPlayer); // Remove from the set
+                            if (slot.currentPlayingInstance === tempPlayer) { // Only clear if it's still the active one
+                                slot.currentPlayingInstance = null;
+                            }
+                        };
+                    } else {
+                        fileInput.click();
+                    }
+                });
+
+                button.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    startAudioContext(); // Centralized audio context start on first interaction
+
+                    if (slot.isLoading) {
+                        showMessageBox("Sound is currently loading, please wait.");
+                        return;
+                    }
+                    
+                    if (slot.buffer) { // Play from buffer if loaded
+                         // If there's an instance currently playing for this slot, stop and dispose it
+                        if (slot.currentPlayingInstance && slot.currentPlayingInstance.state === 'started') {
+                            console.log('Stopping previous instance (touch) for slot', index);
+                            slot.currentPlayingInstance.stop();
+                            slot.currentPlayingInstance.dispose();
+                            activeCustomSoundPlayers.delete(slot.currentPlayingInstance); // Remove from global set
+                        }
+
+                        // DEBUG: Log when attempting to play a new sound instance via touch
+                        console.log('Attempting to play new custom sound instance (touch) for slot', index, 'from buffer.');
+                        console.log('Custom Sound (touch) - Audio context state:', Tone.context.state); // Log context state here
+                        
+                        const tempPlayer = new Tone.Player(slot.buffer).toDestination();
+                        tempPlayer.start(); // Explicitly start the player
+                        slot.currentPlayingInstance = tempPlayer; // Store this new playing instance
+                        activeCustomSoundPlayers.add(tempPlayer); // Add to the set
+                        tempPlayer.onended = () => {
+                            // DEBUG: Log when sound instance ends via touch
+                            console.log('Custom sound instance (touch) ended and disposed for slot', index);
+                            tempPlayer.dispose();
+                            activeCustomSoundPlayers.delete(tempPlayer); // Remove from the set
+                            if (slot.currentPlayingInstance === tempPlayer) { // Only clear if it's still the active one
+                                slot.currentPlayingInstance = null;
+                            }
+                        };
+                    } else if (!slot.buffer && !slot.isLoading) {
+                        fileInput.click();
+                    }
+                }, { passive: false });
+
+                button.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                });
+                button.addEventListener('touchcancel', (e) => {
+                    e.preventDefault();
+                });
+
+
+                fileInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        loadCustomSound(file, index);
+                    }
+                    e.target.value = '';
+                });
+
+                itemWrapper.appendChild(button);
+                itemWrapper.appendChild(filenameSpan); // Append filename span after the button
+                customButtonContainer.appendChild(itemWrapper);
+            });
+        }
+
+        /**
+         * Loads a custom audio file into a Tone.Buffer.
+         * @param {File} file - The audio file to load.
+         * @param {number} index - The index of the custom sound slot.
+         */
+        async function loadCustomSound(file, index) {
+            const slot = customSoundSlots[index];
+            if (slot.isLoading) return;
+
+            slot.isLoading = true;
+            slot.name = file.name.length > 12 ? file.name.substring(0, 9) + '...' + file.name.substring(file.name.lastIndexOf('.') - 3) : file.name;
+            renderCustomButtons(); // Update UI to show loading state
+
+            try {
+                startAudioContext(); // Centralized audio context start on first interaction
+
+                const url = URL.createObjectURL(file);
+                // DEBUG: Log file and URL
+                console.log('Loading custom sound:', file.name, 'URL:', url);
+                console.log('Load Custom Sound - Audio context state:', Tone.context.state); // Log context state here
+
+                // Dispose old buffer if exists
+                if (slot.buffer) {
+                    slot.buffer.dispose(); 
+                }
+                
+                // Create a Tone.Buffer instance from the URL
+                const newBuffer = new Tone.Buffer(url);
+                await newBuffer.loaded; // Wait for the buffer to load
+
+                slot.buffer = newBuffer; // Store the Tone.Buffer instance
+                URL.revokeObjectURL(url); // Clean up the blob URL once the buffer is loaded
+
+                // DEBUG: Log successful load
+                console.log('Custom sound buffer loaded successfully for slot', index);
+                showMessageBox(`'${file.name}' loaded successfully!`);
+            } catch (error) {
+                console.error("Error loading custom sound:", error);
+                showMessageBox(`Failed to load '${file.name}'. Please try another file.`, 5000);
+                slot.buffer = null; // Clear the buffer on error
+                slot.name = ''; 
+            } finally {
+                slot.isLoading = false;
+                renderCustomButtons(); // Re-render to show loaded state with new icon
+            }
+        }
+
+        /**
+         * Stops all playing sounds from the piano and custom sound buttons.
+         */
+        function stopAllSounds() {
+            // Stop all piano notes
+            currentInstrumentSynth.releaseAll();
+            // Remove active class from all piano keys
+            document.querySelectorAll('.piano-container .key.active, .piano-container .black-key.active').forEach(key => {
+                key.classList.remove('active');
+            });
+            // Clear active touches map
+            activeTouches = {};
+
+            // Stop and dispose all currently active custom sound players
+            activeCustomSoundPlayers.forEach(player => {
+                if (player && player.state === 'started') {
+                    player.stop();
+                    player.dispose();
+                }
+            });
+            activeCustomSoundPlayers.clear(); // Clear the set of active players
+
+            // Reset currentPlayingInstance for all custom sound slots
+            customSoundSlots.forEach(slot => {
+                slot.currentPlayingInstance = null; // Clear the reference to any playing instance
+            });
+            showMessageBox("All sounds stopped.");
+        }
+
+        // Global set to keep track of active custom sound players for master stop
+        const activeCustomSoundPlayers = new Set();
+
+        // --- Event Listeners and Initial Setup ---
+        const instrumentVoiceSelect = document.getElementById('instrumentVoiceSelect');
+        const masterStopButton = document.getElementById('masterStopButton');
+        const infoButton = document.getElementById('infoButton'); // Get the info button
+        const infoModal = document.getElementById('infoModal'); // Get the info modal
+        const modalCloseButton = infoModal.querySelector('.modal-close-button'); // Get modal close button
+
+        /**
+         * Safely starts the Tone.js audio context on first user interaction.
+         */
+        async function startAudioContext() {
+            if (!audioContextStarted) {
+                try {
+                    await Tone.start();
+                    audioContextStarted = true;
+                    console.log('Tone.js audio context started and running.');
+                    showMessageBox("Audio unlocked! Tap keys or buttons to play.", 3000);
+                } catch (e) {
+                    console.error("Failed to start audio context:", e);
+                    showMessageBox("Could not start audio. Please ensure your browser allows autoplay/audio.", 8000);
+                }
+            }
+        }
+
+        // Add a single, global listener for the first interaction to start audio context
+        document.body.addEventListener('click', startAudioContext, { once: true });
+        document.body.addEventListener('touchstart', startAudioContext, { once: true });
+
+
+        // Populate the instrument voice dropdown
+        function populateInstrumentVoiceSelect() {
+            for (const name in instrumentVoices) {
+                const optElement = document.createElement('option');
+                optElement.value = name;
+                optElement.textContent = name;
+                if (name === 'Reverb Telolet Horn') { // Set 'Reverb Telolet Horn' as default selected
+                    optElement.selected = true;
+                }
+                instrumentVoiceSelect.appendChild(optElement);
+            }
+        }
+
+        // Handle instrument voice change
+        instrumentVoiceSelect.addEventListener('change', (e) => {
+            switchInstrument(e.target.value);
+        });
+
+        // Master Stop Button Event Listener
+        masterStopButton.addEventListener('click', stopAllSounds);
+        masterStopButton.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Prevent default touch behavior (e.g., potential scroll)
+            stopAllSounds();
+        }, { passive: false });
+
+        // Info Button Event Listener
+        infoButton.addEventListener('click', () => {
+            infoModal.classList.add('show');
+        });
+        infoButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            infoModal.classList.add('show');
+        }, { passive: false });
+
+        // Modal Close Button Event Listener
+        modalCloseButton.addEventListener('click', () => {
+            infoModal.classList.remove('show');
+        });
+        modalCloseButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            infoModal.classList.remove('show');
+        }, { passive: false });
+
+        // Close modal if clicked outside content
+        window.addEventListener('click', (event) => {
+            if (event.target == infoModal) {
+                infoModal.classList.remove('show');
+            }
+        });
+        window.addEventListener('touchstart', (event) => {
+            if (event.target == infoModal) {
+                infoModal.classList.remove('show');
+            }
+        }, { passive: false });
+
+        // Initialize all components on window load
+        window.onload = function () {
+            populateInstrumentVoiceSelect();
+            setupPianoKeyListeners(); // Set up listeners for the static piano keys
+            renderCustomButtons();
+            
+            // Initial resize of piano keys
+            resizePianoKeys();
+        };
+
+        // Re-calculate piano key sizes on window resize
+        window.addEventListener('resize', resizePianoKeys);
+
+        // Add visual feedback for keyboard presses (optional, for desktop users)
+        document.addEventListener('keydown', (e) => {
+            const keyMap = {
+                'A': 'C4', 'S': 'D4', 'D': 'E4', 'F': 'F4', 'G': 'G4', 'H': 'A4', 'J': 'B4',
+                'K': 'C5', 'L': 'D5', ';': 'E5', "'": 'F5',
+                'W': 'C#4', 'E': 'D#4', 'T': 'F#4', 'Y': 'G#4', 'U': 'A#4', 'O': 'C#5', 'P': 'D#5'
+            };
+            const note = keyMap[e.key.toUpperCase()];
+            const keyElement = document.getElementById(note ? note.replace('#', 'sharp') : '');
+
+            if (keyElement && note && !e.repeat) {
+                startNote(keyElement, note);
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const keyMap = {
+                'A': 'C4', 'S': 'D4', 'D': 'E4', 'F': 'F4', 'G': 'G4', 'H': 'A4', 'J': 'B4',
+                'K': 'C5', 'L': 'D5', ';': 'E5', "'": 'F5',
+                'W': 'C#4', 'E': 'D#4', 'T': 'F#4', 'Y': 'G#4', 'U': 'A#4', 'O': 'C#5', 'P': 'D#5'
+            };
+            const note = keyMap[e.key.toUpperCase()];
+            const keyElement = document.getElementById(note ? note.replace('#', 'sharp') : '');
+
+            if (keyElement && note) {
+                stopNote(keyElement, note);
+            }
+        });
+    </script>
+</body>
+</html>
